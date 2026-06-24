@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { fmtRp, fmtDurasi } from '@/lib/utils'
+import { fmtRp } from '@/lib/utils'
 
 type Sesi = { id: string; pelanggan?: string; mulai: string; tarif: number; status: string; member?: { nama: string } }
 type MejaData = { id: number; nomor: number; nama: string; sesi: Sesi[] }
@@ -91,22 +91,24 @@ export default function MejaPage() {
   }
 
   return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
+    <div data-testid="page-meja">
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }} data-testid="stats-grid">
         {[
-          { label: 'Meja aktif', val: stats.aktif },
-          { label: 'Tersedia', val: stats.tersedia },
-          { label: 'Pendapatan hari ini', val: fmtRp(stats.pendapatan) },
-          { label: 'Total sesi', val: stats.sesi },
+          { label: 'Meja aktif', val: stats.aktif, testid: 'stat-aktif' },
+          { label: 'Tersedia', val: stats.tersedia, testid: 'stat-tersedia' },
+          { label: 'Pendapatan hari ini', val: fmtRp(stats.pendapatan), testid: 'stat-pendapatan' },
+          { label: 'Total sesi', val: stats.sesi, testid: 'stat-sesi' },
         ].map(s => (
-          <div key={s.label} style={{ background: '#F1EFE8', borderRadius: 8, padding: '12px 14px' }}>
+          <div key={s.label} style={{ background: '#F1EFE8', borderRadius: 8, padding: '12px 14px' }} data-testid={s.testid}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{s.label}</div>
             <div style={{ fontSize: 22, fontWeight: 500 }}>{s.val}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px,1fr))', gap: 10 }}>
+      {/* Meja grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px,1fr))', gap: 10 }} data-testid="meja-grid">
         {meja.map(m => {
           const sesi = m.sesi[0]
           const isAktif = sesi?.status === 'AKTIF'
@@ -115,7 +117,7 @@ export default function MejaPage() {
           const biayaLive = isAktif ? Math.ceil((elapsed / 3600000) * sesi.tarif) : 0
 
           return (
-            <div key={m.id} className="card" style={{
+            <div key={m.id} className="card" data-testid={`meja-${m.nomor}`} style={{
               padding: 14,
               borderColor: isAktif ? 'var(--blue)' : isReserved ? 'var(--amber)' : 'var(--border)',
               background: isAktif ? 'var(--blue-light)' : isReserved ? 'var(--amber-light)' : 'var(--surface)'
@@ -138,13 +140,13 @@ export default function MejaPage() {
               {!isAktif && <div style={{ minHeight: 48 }} />}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {!isAktif && !isReserved && <>
-                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px', color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-light)' }} onClick={() => openMulai(m.id)}>Mulai</button>
-                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} onClick={async () => { setSelectedId(m.id); await fetch('/api/meja/sesi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mejaId: m.id, pelanggan: '', tarif: 15000, action: 'reserve' }) }); load() }}>Reserve</button>
+                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px', color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-light)' }} onClick={() => openMulai(m.id)} data-testid={`btn-mulai-${m.nomor}`}>Mulai</button>
+                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} onClick={async () => { setSelectedId(m.id); await fetch('/api/meja/sesi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mejaId: m.id, pelanggan: '', tarif: 15000, action: 'reserve' }) }); load() }} data-testid={`btn-reserve-${m.nomor}`}>Reserve</button>
                 </>}
-                {isAktif && <button className="btn btn-danger" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => openCheckout(m.id, sesi)}>Checkout</button>}
+                {isAktif && <button className="btn btn-danger" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => openCheckout(m.id, sesi)} data-testid={`btn-checkout-${m.nomor}`}>Checkout</button>}
                 {isReserved && <>
-                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px', color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-light)' }} onClick={() => openMulai(m.id)}>Mulai</button>
-                  <button className="btn btn-danger" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => batalReserve(m.id, sesi.id)}>Batal</button>
+                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px', color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-light)' }} onClick={() => openMulai(m.id)} data-testid={`btn-mulai-${m.nomor}`}>Mulai</button>
+                  <button className="btn btn-danger" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => batalReserve(m.id, sesi.id)} data-testid={`btn-batal-${m.nomor}`}>Batal</button>
                 </>}
               </div>
             </div>
@@ -152,31 +154,32 @@ export default function MejaPage() {
         })}
       </div>
 
+      {/* Modal */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} data-testid="modal-overlay">
           <div className="card" style={{ padding: 24, width: 360 }}>
             {modal === 'mulai' && <>
               <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Mulai sewa — Meja {selectedId}</h3>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 5 }}>Nama pelanggan</label>
-                <input className="inp" value={pelanggan} onChange={e => setPelanggan(e.target.value)} placeholder="Opsional" autoFocus />
+                <input className="inp" value={pelanggan} onChange={e => setPelanggan(e.target.value)} placeholder="Opsional" autoFocus data-testid="input-pelanggan" />
               </div>
               <div style={{ marginBottom: 20 }}>
                 <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 5 }}>Tarif</label>
-                <select className="inp" value={tarif} onChange={e => setTarif(Number(e.target.value))}>
+                <select className="inp" value={tarif} onChange={e => setTarif(Number(e.target.value))} data-testid="select-tarif">
                   {TARIF_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn" style={{ flex: 1 }} onClick={() => setModal(null)}>Batal</button>
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => doAction('mulai')}>Mulai sewa</button>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => doAction('mulai')} data-testid="btn-mulai-confirm">Mulai sewa</button>
               </div>
             </>}
 
             {modal === 'checkout' && checkoutInfo && <>
               <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Checkout — Meja {selectedId}</h3>
               {[
-                { label: 'Durasi', val: fmtDurasi(checkoutInfo.menit) },
+                { label: 'Durasi', val: fmt(checkoutInfo.menit * 60000) },
                 { label: 'Tarif', val: fmtRp(meja.find(m=>m.id===selectedId)?.sesi[0]?.tarif||0) + '/jam' },
                 { label: 'Total bayar', val: fmtRp(checkoutInfo.biaya) },
               ].map(r => (
@@ -187,7 +190,7 @@ export default function MejaPage() {
               ))}
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <button className="btn" style={{ flex: 1 }} onClick={() => setModal(null)}>Batal</button>
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => doAction('checkout')}>Konfirmasi bayar</button>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => doAction('checkout')} data-testid="btn-checkout-confirm">Konfirmasi bayar</button>
               </div>
             </>}
           </div>
