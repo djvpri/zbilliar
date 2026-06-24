@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  nama      String
+  username  String   @unique
+  password  String
+  role      Role     @default(KASIR)
+  createdAt DateTime @default(now())
+  shifts    Shift[]
+  transaksi Transaksi[]
+}
+
+model Meja {
+  id        Int      @id @default(autoincrement())
+  nomor     Int      @unique
+  nama      String?
+  aktif     Boolean  @default(true)
+  sesi      Sesi[]
+}
+
+model Sesi {
+  id          String     @id @default(cuid())
+  mejaId      Int
+  meja        Meja       @relation(fields: [mejaId], references: [id])
+  pelanggan   String?
+  memberId    String?
+  member      Member?    @relation(fields: [memberId], references: [id])
+  tarif       Int
+  mulai       DateTime   @default(now())
+  selesai     DateTime?
+  durasi      Int?       // menit
+  biaya       Int?
+  status      StatusSesi @default(AKTIF)
+  transaksi   Transaksi?
+}
+
+model Transaksi {
+  id          String   @id @default(cuid())
+  sesiId      String?  @unique
+  sesi        Sesi?    @relation(fields: [sesiId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  jenis       JenisTransaksi
+  total       Int
+  items       Json?
+  createdAt   DateTime @default(now())
+}
+
+model Member {
+  id        String   @id @default(cuid())
+  nama      String
+  telp      String?
+  poin      Int      @default(0)
+  level     LevelMember @default(SILVER)
+  createdAt DateTime @default(now())
+  sesi      Sesi[]
+}
+
+model MenuItem {
+  id      String @id @default(cuid())
+  nama    String
+  harga   Int
+  kategori String @default("minuman")
+  aktif   Boolean @default(true)
+}
+
+model Shift {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  mulai     DateTime @default(now())
+  selesai   DateTime?
+  totalSesi Int      @default(0)
+  totalPendapatan Int @default(0)
+}
+
+enum Role {
+  ADMIN
+  KASIR
+}
+
+enum StatusSesi {
+  AKTIF
+  SELESAI
+  RESERVED
+}
+
+enum JenisTransaksi {
+  SEWA
+  WARUNG
+}
+
+enum LevelMember {
+  SILVER
+  GOLD
+  PLATINUM
+}

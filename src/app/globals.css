@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f8f7f4;
+  --surface: #ffffff;
+  --border: #e5e2da;
+  --text: #1a1917;
+  --text-muted: #6b6760;
+  --text-hint: #a09d97;
+  --blue: #185FA5;
+  --blue-light: #E6F1FB;
+  --green: #3B6D11;
+  --green-light: #EAF3DE;
+  --amber: #854F0B;
+  --amber-light: #FAEEDA;
+  --red: #A32D2D;
+  --red-light: #FCEBEB;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+
+.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; }
+.btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border); background: var(--surface); color: var(--text); transition: background 0.1s; }
+.btn:hover { background: var(--bg); }
+.btn-primary { background: var(--blue); color: white; border-color: var(--blue); }
+.btn-primary:hover { background: #0C447C; }
+.btn-danger { background: var(--red-light); color: var(--red); border-color: var(--red); }
+.btn-success { background: var(--green-light); color: var(--green); border-color: var(--green); }
+.inp { width: 100%; padding: 8px 10px; font-size: 13px; border: 0.5px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); outline: none; }
+.inp:focus { border-color: var(--blue); }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+.badge-blue { background: var(--blue-light); color: var(--blue); }
+.badge-green { background: var(--green-light); color: var(--green); }
+.badge-amber { background: var(--amber-light); color: var(--amber); }
+.badge-red { background: var(--red-light); color: var(--red); }
+.badge-gray { background: #F1EFE8; color: #444441; }
