@@ -4,7 +4,8 @@ import { getTokenFromRequest, verifyToken } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req)
-  if (!token || !verifyToken(token)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const user = token ? verifyToken(token) : null
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const mode = searchParams.get('mode') || 'harian'
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
   }
 
   const transaksi = await prisma.transaksi.findMany({
-    where: { createdAt: { gte: mulai } },
+    where: { createdAt: { gte: mulai }, tenantId: user.tenantId },
     include: { user: { select: { nama: true } } }
   })
 
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   const sesiPerMeja = await prisma.sesi.groupBy({
     by: ['mejaId'],
-    where: { status: 'SELESAI', mulai: { gte: mulai } },
+    where: { status: 'SELESAI', mulai: { gte: mulai }, tenantId: user.tenantId },
     _count: { id: true },
     _sum: { biaya: true }
   })

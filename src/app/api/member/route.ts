@@ -4,15 +4,22 @@ import { getTokenFromRequest, verifyToken } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   const token = getTokenFromRequest(req)
-  if (!token || !verifyToken(token)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const members = await prisma.member.findMany({ orderBy: { poin: 'desc' } })
+  const user = token ? verifyToken(token) : null
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const members = await prisma.member.findMany({ 
+    where: { tenantId: user.tenantId },
+    orderBy: { poin: 'desc' } 
+  })
   return NextResponse.json(members)
 }
 
 export async function POST(req: NextRequest) {
   const token = getTokenFromRequest(req)
-  if (!token || !verifyToken(token)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const user = token ? verifyToken(token) : null
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { nama, telp } = await req.json()
-  const member = await prisma.member.create({ data: { nama, telp } })
+  const member = await prisma.member.create({ 
+    data: { nama, telp, tenantId: user.tenantId } 
+  })
   return NextResponse.json(member)
 }

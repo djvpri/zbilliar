@@ -7,84 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  nama      String
-  username  String   @unique
-  password  String
-  role      Role     @default(KASIR)
-  createdAt DateTime @default(now())
-  shifts    Shift[]
-  transaksi Transaksi[]
-}
-
-model Meja {
-  id        Int      @id @default(autoincrement())
-  nomor     Int      @unique
-  nama      String?
-  aktif     Boolean  @default(true)
-  sesi      Sesi[]
-}
-
-model Sesi {
-  id          String     @id @default(cuid())
-  mejaId      Int
-  meja        Meja       @relation(fields: [mejaId], references: [id])
-  pelanggan   String?
-  memberId    String?
-  member      Member?    @relation(fields: [memberId], references: [id])
-  tarif       Int
-  mulai       DateTime   @default(now())
-  selesai     DateTime?
-  durasi      Int?       // menit
-  biaya       Int?
-  status      StatusSesi @default(AKTIF)
-  transaksi   Transaksi?
-}
-
-model Transaksi {
-  id          String   @id @default(cuid())
-  sesiId      String?  @unique
-  sesi        Sesi?    @relation(fields: [sesiId], references: [id])
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  jenis       JenisTransaksi
-  total       Int
-  items       Json?
-  createdAt   DateTime @default(now())
-}
-
-model Member {
-  id        String   @id @default(cuid())
-  nama      String
-  telp      String?
-  poin      Int      @default(0)
-  level     LevelMember @default(SILVER)
-  createdAt DateTime @default(now())
-  sesi      Sesi[]
-}
-
-model MenuItem {
-  id      String @id @default(cuid())
-  nama    String
-  harga   Int
-  kategori String @default("minuman")
-  aktif   Boolean @default(true)
-}
-
-model Shift {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  mulai     DateTime @default(now())
-  selesai   DateTime?
-  totalSesi Int      @default(0)
-  totalPendapatan Int @default(0)
-}
-
 enum Role {
   ADMIN
   KASIR
+  OWNER
 }
 
 enum StatusSesi {
@@ -102,4 +28,150 @@ enum LevelMember {
   SILVER
   GOLD
   PLATINUM
+}
+
+model Tenant {
+  id          String   @id @default(cuid())
+  nama        String
+  slug        String   @unique
+  alamat      String?
+  telepon     String?
+  logo        String?
+  plan        String   @default("free")
+  planExpires DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        User[]
+  meja         Meja[]
+  sesi         Sesi[]
+  transaksi    Transaksi[]
+  member       Member[]
+  menuItems    MenuItem[]
+  shifts       Shift[]
+}
+
+model Plan {
+  id           String   @id
+  nama         String
+  hargaBulan   Int
+  hargaTahun   Int
+  maxMeja      Int
+  maxUser      Int
+  fitur        String[]
+  isActive     Boolean  @default(true)
+  urutan       Int
+}
+
+model TenantCounter {
+  tenantId String
+  bulan    String
+  jumlahTrx Int   @default(0)
+  @@id([tenantId, bulan])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  nama      String
+  username  String   @unique
+  password  String
+  role      Role     @default(KASIR)
+  aktif     Boolean  @default(true)
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  shifts    Shift[]
+  transaksi Transaksi[]
+}
+
+model Meja {
+  id        Int      @id @default(autoincrement())
+  nomor     Int
+  nama      String?
+  aktif     Boolean  @default(true)
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  sesi   Sesi[]
+
+  @@unique([nomor, tenantId])
+}
+
+model Sesi {
+  id          String     @id @default(cuid())
+  mejaId      Int
+  tenantId    String
+  pelanggan   String?
+  memberId    String?
+  tarif       Int
+  mulai       DateTime   @default(now())
+  selesai     DateTime?
+  durasi      Int?
+  biaya       Int?
+  status      StatusSesi @default(AKTIF)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  meja       Meja        @relation(fields: [mejaId], references: [id])
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  member     Member?     @relation(fields: [memberId], references: [id])
+  transaksi  Transaksi?
+}
+
+model Transaksi {
+  id          String         @id @default(cuid())
+  sesiId      String?        @unique
+  tenantId    String
+  userId      String
+  jenis       JenisTransaksi
+  total       Int
+  bayar       Int?
+  kembalian   Int?
+  items       Json?
+  createdAt   DateTime       @default(now())
+
+  sesi    Sesi?   @relation(fields: [sesiId], references: [id])
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model Member {
+  id        String       @id @default(cuid())
+  nama      String
+  telp      String?
+  poin      Int          @default(0)
+  level     LevelMember  @default(SILVER)
+  tenantId  String
+  createdAt DateTime     @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  sesi   Sesi[]
+}
+
+model MenuItem {
+  id        String   @id @default(cuid())
+  nama      String
+  harga     Int
+  kategori  String   @default("minuman")
+  aktif     Boolean  @default(true)
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model Shift {
+  id              String   @id @default(cuid())
+  userId          String
+  tenantId        String
+  mulai           DateTime @default(now())
+  selesai         DateTime?
+  totalSesi       Int      @default(0)
+  totalPendapatan Int      @default(0)
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 }
