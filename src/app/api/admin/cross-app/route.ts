@@ -34,18 +34,16 @@ export async function POST(req: NextRequest) {
   try {
     const { action, email, data } = await req.json()
 
-    if (action === 'createUser') {
+    if (action === 'create') {
       const name = String(data?.name || '').trim()
       const username = String(data?.email || '').trim()
       const password = String(data?.password || '')
-      const tenantSlug = String(data?.tenantSlug || '').trim()
       if (!name || !username || !password) {
         return NextResponse.json({ error: 'name, email, password wajib diisi' }, { status: 400 })
       }
-      const tenant = await prisma.tenant.findFirst({
-        where: tenantSlug ? { slug: tenantSlug } : {},
-        orderBy: { createdAt: 'asc' }
-      })
+      const tenant = data?.tenantId
+        ? await prisma.tenant.findUnique({ where: { id: data.tenantId } })
+        : await prisma.tenant.findFirst({ orderBy: { createdAt: 'asc' } })
       if (!tenant) return NextResponse.json({ error: 'Tenant tidak ditemukan' }, { status: 400 })
       const existing = await prisma.user.findFirst({ where: { username, tenantId: tenant.id } })
       if (existing) return NextResponse.json({ error: 'Username sudah digunakan' }, { status: 409 })
@@ -87,13 +85,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, role })
     }
 
+    if (action === 'moveTenant') {
+      if (!email) return NextResponse.json({ error: 'email wajib diisi' }, { status: 400 })
+      if (!data?.tenantId) return NextResponse.json({ error: 'tenantId wajib diisi' }, { status: 400 })
+      const tenant = await prisma.tenant.findUnique({ where: { id: data.tenantId } })
+      if (!tenant) return NextResponse.json({ error: 'Tenant tidak ditemukan' }, { status: 404 })
+      await prisma.user.updateMany({
+        where: { username: email },
+        data: { tenantId: data.tenantId }
+      })
+      return NextResponse.json({ success: true })
+    }
+
     if (action === 'updatePlan') {
-      const tenantSlug = String(data?.slug || '').trim()
+      if (!data?.tenantId) return NextResponse.json({ error: 'tenantId wajib diisi' }, { status: 400 })
       const plan = String(data?.plan || 'free')
-      if (!tenantSlug) return NextResponse.json({ error: 'slug wajib diisi' }, { status: 400 })
       const expiresAt = data?.planExpires ? new Date(data.planExpires) : undefined
       await prisma.tenant.update({
-        where: { slug: tenantSlug },
+        where: { id: data.tenantId },
         data: { plan, planExpires: expiresAt }
       })
       return NextResponse.json({ success: true })
@@ -112,18 +121,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'deleteTenant') {
-      const slug = String(data?.slug || '').trim()
-      if (!slug) return NextResponse.json({ error: 'slug wajib diisi' }, { status: 400 })
-      const tenant = await prisma.tenant.findUnique({ where: { slug } })
+      if (!data?.tenantId) return NextResponse.json({ error: 'tenantId wajib diisi' }, { status: 400 })
+      const tenant = await prisma.tenant.findUnique({ where: { id: data.tenantId } })
       if (!tenant) return NextResponse.json({ error: 'Tenant tidak ditemukan' }, { status: 404 })
-      await prisma.transaksi.deleteMany({ where: { tenantId: tenant.id } })
-      await prisma.sesi.deleteMany({ where: { tenantId: tenant.id } })
-      await prisma.meja.deleteMany({ where: { tenantId: tenant.id } })
-      await prisma.member.deleteMany({ where: { tenantId: tenant.id } })
-      await prisma.menuItem.deleteMany({ where: { tenantId: tenant.id } })
-      await prisma.shift.deleteMany({ where: { tenantId: tenant.id } })
-      await prisma.user.deleteMany({ where: { tenantId: tenant.id } })
-      await prisma.tenant.delete({ where: { id: tenant.id } })
+      await prisma.tenant.update({ where: { id: tenant.id }, data: { isActive: false } })
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === 'reactivateTenant') {
+      if (!data?.tenantId) return NextResponse.json({ error: 'tenantId wajib diisi' }, { status: 400 })
+      const tenant = await prisma.tenant.findUnique({ where: { id: data.tenantId } })
+      if (!tenant) return NextResponse.json({ error: 'Tenant tidak ditemukan' }, { status: 404 })
+      await prisma.tenant.update({ where: { id: tenant.id }, data: { isActive: true } })
       return NextResponse.json({ success: true })
     }
 
