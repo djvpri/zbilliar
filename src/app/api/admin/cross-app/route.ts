@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     })
     return NextResponse.json({ 
       tenants: tenants.map(t => ({ id: t.id, name: t.nama, slug: t.slug, plan: t.plan || 'free', active: t.isActive, expires_at: t.planExpires })),
-      users: users.map(u => ({ id: u.id, name: u.nama, email: u.username, tenantId: u.tenantId, role: u.role, active: u.aktif }))
+      users: users.map(u => ({ id: u.id, name: u.nama, email: u.username, tenantId: u.tenantId, role: u.role.toLowerCase(), active: u.aktif }))
     })
   } catch (err) {
     console.error('cross-app GET error:', err)
