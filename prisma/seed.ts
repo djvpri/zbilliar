@@ -43,7 +43,7 @@ async function main() {
   // === USERS ===
   const hash = await bcrypt.hash('admin123', 10)
   await prisma.user.create({
-    data: { nama: 'Admin Billiard', username: 'admin@billiardjaya.com', password: hash, role: 'ADMIN', tenantId: tenant.id }
+    data: { nama: 'Akun Demo', username: 'demo@zomet.my.id', password: hash, role: 'ADMIN', tenantId: tenant.id }
   })
   const hash2 = await bcrypt.hash('kasir123', 10)
   await prisma.user.create({

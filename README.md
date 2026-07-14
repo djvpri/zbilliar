@@ -38,8 +38,8 @@ npm run dev
 ```
 
 Buka http://localhost:3000
-- Admin: `admin` / `admin123`
-- Kasir: `kasir1` / `kasir123`
+- Demo (admin): `demo@zomet.my.id` / `admin123`
+- Kasir: `kasir@billiardjaya.com` / `kasir123`
 
 ## Deploy ke Railway
 
@@ -108,7 +108,7 @@ Pola demo ekosistem Zomet: SATU tenant demo bersama, direset ke kondisi bersih
 1×/hari oleh cron.
 
 - **Tenant demo**: `billiard-jaya` (dari seed), ditandai `isDemo=true` (migrasi
-  `add_tenant_isdemo`). Login: `admin@billiardjaya.com` / `admin123`.
+  `add_tenant_isdemo`). Login: `demo@zomet.my.id` / `admin123`.
 - **Data demo** diisi oleh [`src/lib/demo-seed.ts`](src/lib/demo-seed.ts)
   (`seedDataDemo` / `bersihkanDataToko`) — 8 meja, menu warung, member, riwayat
   sesi & transaksi 14 hari, beberapa meja AKTIF/RESERVED "sekarang". Timestamp
