@@ -36,6 +36,7 @@ async function main() {
       telepon: '021-12345678',
       plan: 'pro',
       planExpires: new Date('2027-12-31'),
+      isDemo: true,
     }
   })
 

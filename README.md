@@ -102,6 +102,30 @@ prisma/
 └── seed.ts                  # Data awal (10 meja, menu, user)
 ```
 
+## Sistem Demo (reset harian)
+
+Pola demo ekosistem Zomet: SATU tenant demo bersama, direset ke kondisi bersih
+1×/hari oleh cron.
+
+- **Tenant demo**: `billiard-jaya` (dari seed), ditandai `isDemo=true` (migrasi
+  `add_tenant_isdemo`). Login: `admin@billiardjaya.com` / `admin123`.
+- **Data demo** diisi oleh [`src/lib/demo-seed.ts`](src/lib/demo-seed.ts)
+  (`seedDataDemo` / `bersihkanDataToko`) — 8 meja, menu warung, member, riwayat
+  sesi & transaksi 14 hari, beberapa meja AKTIF/RESERVED "sekarang". Timestamp
+  **relatif ke `now()`**. User/Tenant TIDAK dihapus, hanya data operasionalnya.
+- **Endpoint**:
+  - `POST /api/demo/reset-daily` — dipanggil cron, proteksi header
+    `Authorization: Bearer <DEMO_RESET_SECRET>` (fail-closed). Cari semua
+    `isDemo=true` → bersihkan + seed.
+  - `POST /api/demo/reset` — "Reset Demo" manual (JWT), guard KRUSIAL `isDemo`.
+- **Env service utama**: `DEMO_RESET_SECRET=<secret-khusus-app-ini>`.
+- **Cron (compassionate-optimism, satu untuk banyak app)**: tambah app ini ke
+  `DEMO_RESET_TARGETS`, format `url|secret` dipisah koma:
+  ```
+  DEMO_RESET_TARGETS=https://zpos.zomet.my.id|secretZpos,https://zbilliar.zomet.my.id|secretZbilliar
+  ```
+  Cron POST ke `https://zbilliar.zomet.my.id/api/demo/reset-daily`.
+
 ## Pengembangan Lanjutan
 - [ ] Cetak struk (PDF/thermal printer)
 - [ ] Notifikasi WhatsApp untuk member
