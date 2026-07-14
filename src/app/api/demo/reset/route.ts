@@ -6,6 +6,15 @@ import { seedDataDemo, bersihkanDataToko } from '@/lib/demo-seed'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// GET /api/demo/reset — cek apakah tenant yang login adalah demo
+export async function GET(req: NextRequest) {
+  const tk = getTokenFromRequest(req)
+  const user = tk ? verifyToken(tk) : null
+  if (!user) return NextResponse.json({ isDemo: false })
+  const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { isDemo: true } })
+  return NextResponse.json({ isDemo: !!tenant?.isDemo })
+}
+
 // POST /api/demo/reset — tombol "Reset Demo" manual saat user eksplor.
 // Pakai sesi JWT biasa, TAPI dengan pengecekan KRUSIAL isDemo di bawah.
 export async function POST(req: NextRequest) {

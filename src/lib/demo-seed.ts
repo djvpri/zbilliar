@@ -40,6 +40,7 @@ export async function bersihkanDataToko(tenantId: string): Promise<void> {
   await prisma.member.deleteMany({ where: { tenantId } })
   await prisma.menuItem.deleteMany({ where: { tenantId } })
   await prisma.meja.deleteMany({ where: { tenantId } })
+  await prisma.tenantCounter.deleteMany({ where: { tenantId } })
 }
 
 export async function seedDataDemo(tenantId: string): Promise<void> {

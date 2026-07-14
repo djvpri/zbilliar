@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { bersihkanDataToko, seedDataDemo } from '../src/lib/demo-seed'
 
 const prisma = new PrismaClient()
 
@@ -11,88 +12,49 @@ async function main() {
     { id: 'pro', nama: 'Pro', hargaBulan: 250000, hargaTahun: 2500000, maxMeja: 15, maxUser: 10, fitur: ['meja', 'sesi', 'laporan', 'member', 'warung', 'reserve', 'multi-shift'], urutan: 3 },
     { id: 'enterprise', nama: 'Enterprise', hargaBulan: 500000, hargaTahun: 5000000, maxMeja: 99, maxUser: 99, fitur: ['meja', 'sesi', 'laporan', 'member', 'warung', 'reserve', 'multi-shift', 'api-access'], urutan: 4 },
   ]
-
   for (const p of plans) {
-    await prisma.plan.upsert({
-      where: { id: p.id },
-      update: p,
-      create: p,
-    })
+    await prisma.plan.upsert({ where: { id: p.id }, update: p, create: p })
   }
+  console.log('Plans: OK')
 
-  // === DEMO TENANT ===
+  // === DEMO TENANT + USERS ===
   const demoSlug = 'billiard-jaya'
-  const existing = await prisma.tenant.findUnique({ where: { slug: demoSlug } })
-  if (existing) {
-    console.log('Demo tenant already exists, skipping seed')
-    return
-  }
+  let tenant = await prisma.tenant.findUnique({ where: { slug: demoSlug } })
 
-  const tenant = await prisma.tenant.create({
-    data: {
-      nama: 'Billiard Jaya',
-      slug: demoSlug,
-      alamat: 'Jl. Merdeka No. 123, Jakarta',
-      telepon: '021-12345678',
-      plan: 'pro',
-      planExpires: new Date('2027-12-31'),
-      isDemo: true,
-    }
-  })
-
-  // === USERS ===
-  const hash = await bcrypt.hash('admin123', 10)
-  await prisma.user.create({
-    data: { nama: 'Akun Demo', username: 'demo@zomet.my.id', password: hash, role: 'ADMIN', tenantId: tenant.id }
-  })
-  const hash2 = await bcrypt.hash('kasir123', 10)
-  await prisma.user.create({
-    data: { nama: 'Kasir Billiard', username: 'kasir@billiardjaya.com', password: hash2, role: 'KASIR', tenantId: tenant.id }
-  })
-
-  // === MEJA ===
-  for (let i = 1; i <= 8; i++) {
-    await prisma.meja.create({
-      data: { nomor: i, nama: `Meja ${i}`, tenantId: tenant.id }
+  if (!tenant) {
+    tenant = await prisma.tenant.create({
+      data: {
+        nama: 'Billiard Jaya',
+        slug: demoSlug,
+        alamat: 'Jl. Merdeka No. 123, Jakarta',
+        telepon: '021-12345678',
+        plan: 'pro',
+        planExpires: new Date('2027-12-31'),
+        isDemo: true,
+      },
     })
-  }
 
-  // === MENU ===
-  const menuItems = [
-    { nama: 'Air Mineral', harga: 5000, kategori: 'minuman' },
-    { nama: 'Teh Manis', harga: 7000, kategori: 'minuman' },
-    { nama: 'Kopi Hitam', harga: 8000, kategori: 'minuman' },
-    { nama: 'Jus Jeruk', harga: 10000, kategori: 'minuman' },
-    { nama: 'Indomie Goreng', harga: 12000, kategori: 'makanan' },
-    { nama: 'Kentang Goreng', harga: 15000, kategori: 'makanan' },
-    { nama: 'Pisang Goreng', harga: 10000, kategori: 'makanan' },
-    { nama: 'Rokok Surya', harga: 25000, kategori: 'lainnya' },
-    { nama: 'Teh Botol', harga: 7000, kategori: 'minuman' },
-    { nama: 'Nasi Goreng', harga: 20000, kategori: 'makanan' },
-  ]
-
-  for (const m of menuItems) {
-    await prisma.menuItem.create({
-      data: { ...m, tenantId: tenant.id }
+    const hash = await bcrypt.hash('admin123', 10)
+    await prisma.user.create({
+      data: { nama: 'Akun Demo', username: 'demo@zomet.my.id', password: hash, role: 'ADMIN', tenantId: tenant.id },
     })
-  }
-
-  // === MEMBER ===
-  const members = [
-    { nama: 'Budi Santoso', telp: '08123456789' },
-    { nama: 'Siti Rahmawati', telp: '08198765432' },
-    { nama: 'Ahmad Fauzi', telp: '08561122334' },
-  ]
-  for (const m of members) {
-    await prisma.member.create({
-      data: { ...m, tenantId: tenant.id, level: 'SILVER' }
+    const hash2 = await bcrypt.hash('kasir123', 10)
+    await prisma.user.create({
+      data: { nama: 'Kasir Billiard', username: 'kasir@billiardjaya.com', password: hash2, role: 'KASIR', tenantId: tenant.id },
     })
+    console.log('Tenant + users: created')
+  } else {
+    console.log('Tenant: already exists, re-seeding data...')
   }
 
-  console.log('Seed completed!')
+  // === SEED DATA DEMO (meja, menu, member, history) ===
+  await bersihkanDataToko(tenant.id)
+  await seedDataDemo(tenant.id)
+
+  console.log('Seed selesai!')
   console.log(`Tenant: ${tenant.nama} (${tenant.slug})`)
-  console.log('Login: admin@billiardjaya.com / admin123')
-  console.log('Login: kasir@billiardjaya.com / kasir123')
+  console.log('Login admin : demo@zomet.my.id / admin123')
+  console.log('Login kasir : kasir@billiardjaya.com / kasir123')
 }
 
 main()

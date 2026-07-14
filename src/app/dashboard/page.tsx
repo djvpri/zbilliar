@@ -21,6 +21,8 @@ export default function MejaPage() {
   const [now, setNow] = useState(Date.now())
   const [stats, setStats] = useState({ aktif: 0, tersedia: 0, pendapatan: 0, sesi: 0 })
   const [checkoutInfo, setCheckoutInfo] = useState<{ menit: number; biaya: number } | null>(null)
+  const [isDemo, setIsDemo] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   const load = useCallback(async () => {
     const res = await fetch('/api/meja')
@@ -29,6 +31,20 @@ export default function MejaPage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
+  useEffect(() => {
+    fetch('/api/demo/reset').then(r => r.json()).then(d => setIsDemo(!!d.isDemo)).catch(() => {})
+  }, [])
+
+  async function handleResetDemo() {
+    if (!confirm('Reset semua data demo ke kondisi awal? Sesi aktif dan transaksi hari ini akan dihapus.')) return
+    setResetting(true)
+    try {
+      await fetch('/api/demo/reset', { method: 'POST' })
+      await load()
+    } finally {
+      setResetting(false)
+    }
+  }
 
   useEffect(() => {
     let aktif = 0, tersedia = 0
@@ -92,6 +108,23 @@ export default function MejaPage() {
 
   return (
     <div data-testid="page-meja">
+      {/* Banner demo */}
+      {isDemo && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--blue-light)', border: '1px solid var(--blue)', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13 }}>
+          <span style={{ color: 'var(--blue)' }}>
+            <i className="ti ti-info-circle" style={{ marginRight: 6, verticalAlign: '-2px' }} />
+            Ini adalah akun demo. Data dapat direset kapan saja.
+          </span>
+          <button
+            onClick={handleResetDemo}
+            disabled={resetting}
+            style={{ fontSize: 12, padding: '4px 12px', background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 6, cursor: resetting ? 'wait' : 'pointer', opacity: resetting ? 0.7 : 1 }}
+          >
+            {resetting ? 'Mereset...' : '↺ Reset Demo'}
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }} data-testid="stats-grid">
         {[
