@@ -4,12 +4,29 @@ import { fmtRp } from '@/lib/utils'
 
 type Sesi = { id: string; pelanggan?: string; mulai: string; tarif: number; status: string; member?: { nama: string } }
 type MejaData = { id: number; nomor: number; nama: string; sesi: Sesi[] }
+type ReceiptSewa = { mejaName: string; pelanggan: string; mulai: string; selesai: string; menit: number; tarif: number; biaya: number }
 
 const TARIF_OPTIONS = [
   { label: 'Rp 15.000/jam (reguler)', value: 15000 },
   { label: 'Rp 20.000/jam (weekend)', value: 20000 },
   { label: 'Rp 10.000/jam (member)', value: 10000 },
 ]
+
+function fmt(ms: number) {
+  const s = Math.floor(ms / 1000)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sc = s % 60
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`
+}
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 
 export default function MejaPage() {
   const [meja, setMeja] = useState<MejaData[]>([])
@@ -23,6 +40,7 @@ export default function MejaPage() {
   const [checkoutInfo, setCheckoutInfo] = useState<{ menit: number; biaya: number } | null>(null)
   const [isDemo, setIsDemo] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [receipt, setReceipt] = useState<ReceiptSewa | null>(null)
 
   const load = useCallback(async () => {
     const res = await fetch('/api/meja')
@@ -60,14 +78,6 @@ export default function MejaPage() {
     return now - new Date(mulai).getTime()
   }
 
-  function fmt(ms: number) {
-    const s = Math.floor(ms / 1000)
-    const h = Math.floor(s / 3600)
-    const m = Math.floor((s % 3600) / 60)
-    const sc = s % 60
-    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`
-  }
-
   function openMulai(id: number) {
     setSelectedId(id); setPelanggan(''); setTarif(15000); setModal('mulai')
   }
@@ -84,15 +94,25 @@ export default function MejaPage() {
   async function doAction(action: string, extra?: object) {
     const mejaItem = meja.find(m => m.id === selectedId)
     const sesi = mejaItem?.sesi[0]
-    await fetch('/api/meja/sesi', {
+    const res = await fetch('/api/meja/sesi', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mejaId: selectedId, sesiId: selectedSesiId || sesi?.id, pelanggan, tarif, action, ...extra })
     })
     setModal(null)
     await load()
-    if (action === 'checkout') {
-      setStats(prev => ({ ...prev, pendapatan: prev.pendapatan + (checkoutInfo?.biaya || 0), sesi: prev.sesi + 1 }))
+    if (action === 'checkout' && checkoutInfo && mejaItem && sesi) {
+      setStats(prev => ({ ...prev, pendapatan: prev.pendapatan + checkoutInfo.biaya, sesi: prev.sesi + 1 }))
+      const selesaiNow = new Date().toISOString()
+      setReceipt({
+        mejaName: mejaItem.nama,
+        pelanggan: sesi.pelanggan || 'Tamu',
+        mulai: sesi.mulai,
+        selesai: selesaiNow,
+        menit: checkoutInfo.menit,
+        tarif: sesi.tarif,
+        biaya: checkoutInfo.biaya,
+      })
     }
   }
 
@@ -107,128 +127,216 @@ export default function MejaPage() {
   }
 
   return (
-    <div data-testid="page-meja">
-      {/* Banner demo */}
-      {isDemo && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--blue-light)', border: '1px solid var(--blue)', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13 }}>
-          <span style={{ color: 'var(--blue)' }}>
-            <i className="ti ti-info-circle" style={{ marginRight: 6, verticalAlign: '-2px' }} />
-            Ini adalah akun demo. Data dapat direset kapan saja.
-          </span>
-          <button
-            onClick={handleResetDemo}
-            disabled={resetting}
-            style={{ fontSize: 12, padding: '4px 12px', background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 6, cursor: resetting ? 'wait' : 'pointer', opacity: resetting ? 0.7 : 1 }}
-          >
-            {resetting ? 'Mereset...' : '↺ Reset Demo'}
-          </button>
-        </div>
-      )}
+    <>
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #nota-sewa, #nota-sewa * { visibility: visible !important; }
+          #nota-sewa {
+            position: fixed !important; top: 0 !important; left: 0 !important;
+            width: 100% !important; padding: 24px !important; background: white !important;
+          }
+        }
+      `}</style>
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }} data-testid="stats-grid">
-        {[
-          { label: 'Meja aktif', val: stats.aktif, testid: 'stat-aktif' },
-          { label: 'Tersedia', val: stats.tersedia, testid: 'stat-tersedia' },
-          { label: 'Pendapatan hari ini', val: fmtRp(stats.pendapatan), testid: 'stat-pendapatan' },
-          { label: 'Total sesi', val: stats.sesi, testid: 'stat-sesi' },
-        ].map(s => (
-          <div key={s.label} style={{ background: '#F1EFE8', borderRadius: 8, padding: '12px 14px' }} data-testid={s.testid}>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 500 }}>{s.val}</div>
+      <div data-testid="page-meja">
+        {/* Banner demo */}
+        {isDemo && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--blue-light)', border: '1px solid var(--blue)', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13 }}>
+            <span style={{ color: 'var(--blue)' }}>
+              <i className="ti ti-info-circle" style={{ marginRight: 6, verticalAlign: '-2px' }} />
+              Ini adalah akun demo. Data dapat direset kapan saja.
+            </span>
+            <button
+              onClick={handleResetDemo}
+              disabled={resetting}
+              style={{ fontSize: 12, padding: '4px 12px', background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 6, cursor: resetting ? 'wait' : 'pointer', opacity: resetting ? 0.7 : 1 }}
+            >
+              {resetting ? 'Mereset...' : '↺ Reset Demo'}
+            </button>
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Meja grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px,1fr))', gap: 10 }} data-testid="meja-grid">
-        {meja.map(m => {
-          const sesi = m.sesi[0]
-          const isAktif = sesi?.status === 'AKTIF'
-          const isReserved = sesi?.status === 'RESERVED'
-          const elapsed = isAktif ? getElapsed(sesi.mulai) : 0
-          const biayaLive = isAktif ? Math.ceil((elapsed / 3600000) * sesi.tarif) : 0
+        {/* Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }} data-testid="stats-grid">
+          {[
+            { label: 'Meja aktif', val: stats.aktif, testid: 'stat-aktif' },
+            { label: 'Tersedia', val: stats.tersedia, testid: 'stat-tersedia' },
+            { label: 'Pendapatan hari ini', val: fmtRp(stats.pendapatan), testid: 'stat-pendapatan' },
+            { label: 'Total sesi', val: stats.sesi, testid: 'stat-sesi' },
+          ].map(s => (
+            <div key={s.label} style={{ background: '#F1EFE8', borderRadius: 8, padding: '12px 14px' }} data-testid={s.testid}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 500 }}>{s.val}</div>
+            </div>
+          ))}
+        </div>
 
-          return (
-            <div key={m.id} className="card" data-testid={`meja-${m.nomor}`} style={{
-              padding: 14,
-              borderColor: isAktif ? 'var(--blue)' : isReserved ? 'var(--amber)' : 'var(--border)',
-              background: isAktif ? 'var(--blue-light)' : isReserved ? 'var(--amber-light)' : 'var(--surface)'
-            }}>
-              <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>
-                <i className="ti ti-circles-relation" style={{ fontSize: 14, verticalAlign: '-2px', marginRight: 4 }} />
-                {m.nama}
+        {/* Meja grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px,1fr))', gap: 10 }} data-testid="meja-grid">
+          {meja.map(m => {
+            const sesi = m.sesi[0]
+            const isAktif = sesi?.status === 'AKTIF'
+            const isReserved = sesi?.status === 'RESERVED'
+            const elapsed = isAktif ? getElapsed(sesi.mulai) : 0
+            const biayaLive = isAktif ? Math.ceil((elapsed / 3600000) * sesi.tarif) : 0
+
+            return (
+              <div key={m.id} className="card" data-testid={`meja-${m.nomor}`} style={{
+                padding: 14,
+                borderColor: isAktif ? 'var(--blue)' : isReserved ? 'var(--amber)' : 'var(--border)',
+                background: isAktif ? 'var(--blue-light)' : isReserved ? 'var(--amber-light)' : 'var(--surface)'
+              }}>
+                <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>
+                  <i className="ti ti-circles-relation" style={{ fontSize: 14, verticalAlign: '-2px', marginRight: 4 }} />
+                  {m.nama}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 6, color: isAktif ? 'var(--blue)' : isReserved ? 'var(--amber)' : 'var(--text-hint)' }}>
+                  {isAktif ? 'Sedang dipakai' : isReserved ? 'Reserved' : 'Tersedia'}
+                </div>
+                {isAktif && (
+                  <>
+                    <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 500, color: 'var(--blue)', marginBottom: 4 }}>{fmt(elapsed)}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+                      {sesi.pelanggan || 'Tamu'} · {fmtRp(biayaLive)}
+                    </div>
+                  </>
+                )}
+                {!isAktif && <div style={{ minHeight: 48 }} />}
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {!isAktif && !isReserved && <>
+                    <button className="btn" style={{ fontSize: 11, padding: '3px 8px', color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-light)' }} onClick={() => openMulai(m.id)} data-testid={`btn-mulai-${m.nomor}`}>Mulai</button>
+                    <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} onClick={async () => { setSelectedId(m.id); await fetch('/api/meja/sesi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mejaId: m.id, pelanggan: '', tarif: 15000, action: 'reserve' }) }); load() }} data-testid={`btn-reserve-${m.nomor}`}>Reserve</button>
+                  </>}
+                  {isAktif && <button className="btn btn-danger" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => openCheckout(m.id, sesi)} data-testid={`btn-checkout-${m.nomor}`}>Checkout</button>}
+                  {isReserved && <>
+                    <button className="btn" style={{ fontSize: 11, padding: '3px 8px', color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-light)' }} onClick={() => openMulai(m.id)} data-testid={`btn-mulai-${m.nomor}`}>Mulai</button>
+                    <button className="btn btn-danger" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => batalReserve(m.id, sesi.id)} data-testid={`btn-batal-${m.nomor}`}>Batal</button>
+                  </>}
+                </div>
               </div>
-              <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 6, color: isAktif ? 'var(--blue)' : isReserved ? 'var(--amber)' : 'var(--text-hint)' }}>
-                {isAktif ? 'Sedang dipakai' : isReserved ? 'Reserved' : 'Tersedia'}
-              </div>
-              {isAktif && (
-                <>
-                  <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 500, color: 'var(--blue)', marginBottom: 4 }}>{fmt(elapsed)}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
-                    {sesi.pelanggan || 'Tamu'} · {fmtRp(biayaLive)}
+            )
+          })}
+        </div>
+
+        {/* Modal mulai/checkout */}
+        {modal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} data-testid="modal-overlay">
+            <div className="card" style={{ padding: 24, width: 360 }}>
+              {modal === 'mulai' && <>
+                <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Mulai sewa — Meja {selectedId}</h3>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 5 }}>Nama pelanggan</label>
+                  <input className="inp" value={pelanggan} onChange={e => setPelanggan(e.target.value)} placeholder="Opsional" autoFocus data-testid="input-pelanggan" />
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 5 }}>Tarif</label>
+                  <select className="inp" value={tarif} onChange={e => setTarif(Number(e.target.value))} data-testid="select-tarif">
+                    {TARIF_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn" style={{ flex: 1 }} onClick={() => setModal(null)}>Batal</button>
+                  <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => doAction('mulai')} data-testid="btn-mulai-confirm">Mulai sewa</button>
+                </div>
+              </>}
+
+              {modal === 'checkout' && checkoutInfo && <>
+                <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Checkout — Meja {selectedId}</h3>
+                {[
+                  { label: 'Durasi', val: fmt(checkoutInfo.menit * 60000) },
+                  { label: 'Tarif', val: fmtRp(meja.find(m=>m.id===selectedId)?.sesi[0]?.tarif||0) + '/jam' },
+                  { label: 'Total bayar', val: fmtRp(checkoutInfo.biaya) },
+                ].map(r => (
+                  <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '0.5px solid var(--border)', fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>{r.label}</span>
+                    <span style={{ fontWeight: r.label === 'Total bayar' ? 500 : 400 }}>{r.val}</span>
                   </div>
-                </>
-              )}
-              {!isAktif && <div style={{ minHeight: 48 }} />}
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {!isAktif && !isReserved && <>
-                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px', color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-light)' }} onClick={() => openMulai(m.id)} data-testid={`btn-mulai-${m.nomor}`}>Mulai</button>
-                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }} onClick={async () => { setSelectedId(m.id); await fetch('/api/meja/sesi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mejaId: m.id, pelanggan: '', tarif: 15000, action: 'reserve' }) }); load() }} data-testid={`btn-reserve-${m.nomor}`}>Reserve</button>
-                </>}
-                {isAktif && <button className="btn btn-danger" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => openCheckout(m.id, sesi)} data-testid={`btn-checkout-${m.nomor}`}>Checkout</button>}
-                {isReserved && <>
-                  <button className="btn" style={{ fontSize: 11, padding: '3px 8px', color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-light)' }} onClick={() => openMulai(m.id)} data-testid={`btn-mulai-${m.nomor}`}>Mulai</button>
-                  <button className="btn btn-danger" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => batalReserve(m.id, sesi.id)} data-testid={`btn-batal-${m.nomor}`}>Batal</button>
-                </>}
+                ))}
+                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <button className="btn" style={{ flex: 1 }} onClick={() => setModal(null)}>Batal</button>
+                  <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => doAction('checkout')} data-testid="btn-checkout-confirm">Konfirmasi bayar</button>
+                </div>
+              </>}
+            </div>
+          </div>
+        )}
+
+        {/* Modal Nota Sewa */}
+        {receipt && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+            <div className="card" style={{ width: 320, overflow: 'hidden' }}>
+              <div id="nota-sewa" style={{ padding: 24, fontFamily: 'monospace', fontSize: 13 }}>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <i className="ti ti-circles-relation" /> ZBilliar
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Kasir Billiard</div>
+                  <div style={{ borderTop: '1px dashed #ccc', margin: '12px 0' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#888' }}>Tanggal</span>
+                    <span>{fmtDate(receipt.mulai)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#888' }}>Meja</span>
+                    <span style={{ fontWeight: 600 }}>{receipt.mejaName}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#888' }}>Pelanggan</span>
+                    <span>{receipt.pelanggan}</span>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px dashed #ccc', margin: '12px 0' }} />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#888' }}>Mulai</span>
+                    <span>{fmtTime(receipt.mulai)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#888' }}>Selesai</span>
+                    <span>{fmtTime(receipt.selesai)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#888' }}>Durasi</span>
+                    <span>{Math.floor(receipt.menit / 60)}j {receipt.menit % 60}m</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#888' }}>Tarif</span>
+                    <span>{fmtRp(receipt.tarif)}/jam</span>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px dashed #ccc', margin: '12px 0' }} />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
+                  <span>TOTAL</span>
+                  <span>{fmtRp(receipt.biaya)}</span>
+                </div>
+
+                <div style={{ borderTop: '1px dashed #ccc', margin: '12px 0' }} />
+
+                <div style={{ textAlign: 'center', fontSize: 11, color: '#888' }}>
+                  <p>Terima kasih telah bermain!</p>
+                  <p>Sampai jumpa kembali</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, padding: '0 20px 20px' }}>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => window.print()}>
+                  <i className="ti ti-printer" style={{ marginRight: 6, verticalAlign: '-2px' }} />
+                  Cetak
+                </button>
+                <button className="btn" style={{ flex: 1 }} onClick={() => setReceipt(null)}>Tutup</button>
               </div>
             </div>
-          )
-        })}
-      </div>
-
-      {/* Modal */}
-      {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} data-testid="modal-overlay">
-          <div className="card" style={{ padding: 24, width: 360 }}>
-            {modal === 'mulai' && <>
-              <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Mulai sewa — Meja {selectedId}</h3>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 5 }}>Nama pelanggan</label>
-                <input className="inp" value={pelanggan} onChange={e => setPelanggan(e.target.value)} placeholder="Opsional" autoFocus data-testid="input-pelanggan" />
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 5 }}>Tarif</label>
-                <select className="inp" value={tarif} onChange={e => setTarif(Number(e.target.value))} data-testid="select-tarif">
-                  {TARIF_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn" style={{ flex: 1 }} onClick={() => setModal(null)}>Batal</button>
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => doAction('mulai')} data-testid="btn-mulai-confirm">Mulai sewa</button>
-              </div>
-            </>}
-
-            {modal === 'checkout' && checkoutInfo && <>
-              <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Checkout — Meja {selectedId}</h3>
-              {[
-                { label: 'Durasi', val: fmt(checkoutInfo.menit * 60000) },
-                { label: 'Tarif', val: fmtRp(meja.find(m=>m.id===selectedId)?.sesi[0]?.tarif||0) + '/jam' },
-                { label: 'Total bayar', val: fmtRp(checkoutInfo.biaya) },
-              ].map(r => (
-                <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '0.5px solid var(--border)', fontSize: 13 }}>
-                  <span style={{ color: 'var(--text-muted)' }}>{r.label}</span>
-                  <span style={{ fontWeight: r.label === 'Total bayar' ? 500 : 400 }}>{r.val}</span>
-                </div>
-              ))}
-              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                <button className="btn" style={{ flex: 1 }} onClick={() => setModal(null)}>Batal</button>
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => doAction('checkout')} data-testid="btn-checkout-confirm">Konfirmasi bayar</button>
-              </div>
-            </>}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   )
 }
