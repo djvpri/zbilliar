@@ -62,7 +62,7 @@ export default function MemberPage() {
 
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="card" style={{ padding: 24, width: 340 }}>
+          <div className="card" style={{ padding: 24, width: 'min(340px, calc(100vw - 32px))' }}>
             <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Tambah member baru</h3>
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 5 }}>Nama</label>

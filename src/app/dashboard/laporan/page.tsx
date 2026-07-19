@@ -31,7 +31,7 @@ export default function LaporanPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
+      <div className="mobile-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
         {[
           { label: 'Total omzet', val: fmtRp(data.totalOmzet) },
           { label: 'Pendapatan sewa', val: fmtRp(data.totalSewa) },
@@ -45,7 +45,7 @@ export default function LaporanPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="card" style={{ padding: 16 }}>
           <h3 style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>Pemakaian per meja</h3>
           {data.sesiPerMeja.length === 0 ? (

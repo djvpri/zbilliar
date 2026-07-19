@@ -158,7 +158,7 @@ export default function MejaPage() {
         )}
 
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }} data-testid="stats-grid">
+        <div className="mobile-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 20 }} data-testid="stats-grid">
           {[
             { label: 'Meja aktif', val: stats.aktif, testid: 'stat-aktif' },
             { label: 'Tersedia', val: stats.tersedia, testid: 'stat-tersedia' },
@@ -222,7 +222,7 @@ export default function MejaPage() {
         {/* Modal mulai/checkout */}
         {modal && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} data-testid="modal-overlay">
-            <div className="card" style={{ padding: 24, width: 360 }}>
+            <div className="card" style={{ padding: 24, width: 'min(360px, calc(100vw - 32px))' }}>
               {modal === 'mulai' && <>
                 <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 16 }}>Mulai sewa — Meja {selectedId}</h3>
                 <div style={{ marginBottom: 12 }}>
@@ -265,7 +265,7 @@ export default function MejaPage() {
         {/* Modal Nota Sewa */}
         {receipt && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-            <div className="card" style={{ width: 320, overflow: 'hidden' }}>
+            <div className="card" style={{ width: 'min(320px, calc(100vw - 32px))', overflow: 'hidden' }}>
               <div id="nota-sewa" style={{ padding: 24, fontFamily: 'monospace', fontSize: 13 }}>
                 <div style={{ textAlign: 'center', marginBottom: 16 }}>
                   <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>

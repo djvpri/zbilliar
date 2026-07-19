@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div style={{ minHeight: '100vh' }}>
       <Navbar user={{ nama: user.nama, role: user.role }} />
-      <main style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>{children}</main>
+      <main className="dashboard-main" style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>{children}</main>
     </div>
   )
 }

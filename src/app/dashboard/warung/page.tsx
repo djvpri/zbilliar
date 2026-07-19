@@ -64,7 +64,7 @@ export default function WarungPage() {
         }
       `}</style>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+      <div className="warung-layout">
         <div>
           {kategori.map(kat => (
             <div key={kat} style={{ marginBottom: 20 }}>
@@ -84,7 +84,7 @@ export default function WarungPage() {
           ))}
         </div>
 
-        <div className="card" style={{ padding: 16, position: 'sticky', top: 20 }}>
+        <div className="card warung-cart" style={{ padding: 16, position: 'sticky', top: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>
             <i className="ti ti-shopping-cart" style={{ fontSize: 14, verticalAlign: '-2px', marginRight: 6 }} />
             Keranjang
@@ -120,7 +120,7 @@ export default function WarungPage() {
       {/* Modal Nota Warung */}
       {receipt && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }}>
-          <div className="card" style={{ width: 320, overflow: 'hidden' }}>
+          <div className="card" style={{ width: 'min(320px, calc(100vw - 32px))', overflow: 'hidden' }}>
             <div id="nota-warung" style={{ padding: 24, fontFamily: 'monospace', fontSize: 13 }}>
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
                 <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
